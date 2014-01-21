@@ -5,6 +5,7 @@ class FTPSession
 
     def initialize(host, port, user, password)
         @session = Net::FTP.new
+        @session.passive = true
         @host = host
         @user = user
         @password = password
