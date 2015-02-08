@@ -4,6 +4,7 @@ require 'guard/autoupload/scpsession.rb'
 require 'guard/autoupload/sftpsession.rb'
 require 'guard/autoupload/ftpsession.rb'
 require 'kconv'
+require 'digest/md5'
 
 module Guard
   class Autoupload < Plugin
@@ -51,6 +52,12 @@ module Guard
       UI.info("Initialized with options #{output.inspect}") unless quiet?
     end
 
+    def md5_filename(filename)
+      target = Pathname(filename)
+      md5 = Digest::MD5.hexdigest(filename)
+      target.dirname.join("#{md5}#{target.extname}").to_s
+    end
+
     def run_on_changes(paths)
       local_file = nil
       paths.each do |path|
@@ -59,6 +66,7 @@ module Guard
         local_file = File.join(@local, path)
         path.sub!(/^#{@local_subpath}/, '')
         remote_file = File.join(@remote, path)
+        remote_file = md5_filename remote_file
 
         if(File.directory?(local_file))
           next
@@ -92,6 +100,7 @@ module Guard
       paths.each do |path|
         path.sub!(/^#{@local_subpath}/, '')
         remote_file = File.join(@remote, path)
+        remote_file = md5_filename remote_file
 
         if @remote_delete
           begin
