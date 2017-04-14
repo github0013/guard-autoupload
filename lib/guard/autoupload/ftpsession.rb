@@ -1,46 +1,60 @@
 require 'net/ftp'
 
 class FTPSession
-    RESPAWN_INTERVAL = 60 # in seconds
+  RESPAWN_INTERVAL = 60 # in seconds
 
-    def initialize(host, port, user, password)
-        @session = Net::FTP.new
-        @session.passive = true
-        @host = host
-        @user = user
-        @password = password
-        @last_timestamp = Time.new(0)
-        @session.connect(@host, port)
-        @session.login(@user, @password)
+  def initialize(host, port, user, password)
+    @ftp = Net::FTP.new
+    @host = host
+    @port = port
+    @user = user
+    @password = password
+    @last_accessed = Time.now
+
+    connect
+  end
+
+  def upload!(local, remote)
+    remote { ftp.putbinaryfile(local, remote) }
+  end
+
+  def mkdir!(dir)
+    remote { ftp.mkdir(dir) }
+  end
+
+  def remove!(remote)
+    remote { ftp.delete(remote) }
+  end
+
+  def rmdir!(dir)
+    remote { ftp.rmdir(dir) }
+  end
+
+  private
+
+    attr_reader :ftp, :host, :port, :user, :password, :last_accessed
+
+    def connect
+      ftp.passive = true
+      ftp.connect(host, port)
+      ftp.login(user, password)
+      last_accessed = Time.now
     end
 
-    def upload!(local, remote)
-        remote { @session.putbinaryfile(local, remote) }
+    def reconnect
+      return unless timeout?
+      ftp.close
+      connect
     end
 
-    def mkdir!(dir)
-        remote { @session.mkdir(dir) }
+    def timeout?
+      (Time.now - last_accessed) > RESPAWN_INTERVAL
     end
-
-    def remove!(remote)
-        remote { @session.delete(remote) }
-    end
-
-    def rmdir!(dir)
-        remote { @session.rmdir(dir) }
-    end
-
-    private
 
     def remote
-        command_start_timestamp = Time.now
-        if (command_start_timestamp - @last_timestamp > RESPAWN_INTERVAL)
-            @session.close unless @session.last_response == nil
-            @session.connect(@host)
-            @session.login(@user, @password)
-        end
-        ret = yield
-        @last_timestamp = Time.now
-        ret
+      reconnect
+      yield.tap do
+        @last_accessed = Time.now
+      end
     end
 end
