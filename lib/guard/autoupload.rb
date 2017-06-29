@@ -128,7 +128,7 @@ module Guard
 
     def recursively_create_dirs(remote_dir)
       new_dir = @remote
-      remote_dir.gsub(@remote, "").split("/").each do |dir|
+      remote_dir.sub(%r|^#{@remote}|, "").split("/").each do |dir|
         new_dir = File.join(new_dir, dir)
 
         begin
